@@ -1,0 +1,22 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+dist/
+
+# 数据库与数据（本地生成，不入库）
+*.db
+*.db-wal
+*.db-shm
+cashui.db
+reports/
+
+# 环境配置（含密钥，不入库）
+.env
+
+# 其他
+.DS_Store
+*.log
