@@ -66,7 +66,7 @@
             </van-radio-group>
           </template>
         </van-field>
-        <p class="hint">密码将设为默认密码 xglsmc123.，首次登录需修改</p>
+        <p class="hint">密码将设为系统配置的默认密码，首次登录需修改</p>
         <div style="margin-top: 16px">
           <van-button round block type="primary" @click="submitCreate">创建</van-button>
         </div>

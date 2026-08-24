@@ -1,4 +1,6 @@
 """账号管理接口：仅管理员。"""
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,6 +21,11 @@ from app.schemas.user import (
 router = APIRouter(tags=["账号管理"])
 
 
+def _default_password() -> str:
+    """默认密码：优先 .env 配置，未配置则生成随机密码。"""
+    return DEFAULT_PASSWORD or secrets.token_urlsafe(8)
+
+
 def _validate_role(role: str):
     if role not in ("admin", "advanced", "normal"):
         raise HTTPException(status_code=400, detail="无效的角色")
@@ -26,7 +33,7 @@ def _validate_role(role: str):
 
 def _new_user(username: str, password: str, role: str) -> User:
     """创建用户对象，密码留空时用默认密码。"""
-    pwd = password or DEFAULT_PASSWORD
+    pwd = password or _default_password()
     return User(
         username=username,
         password_hash=hash_password(pwd),
@@ -120,12 +127,13 @@ def reset_password(
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
-    user.password_hash = hash_password(DEFAULT_PASSWORD)
+    pwd = _default_password()
+    user.password_hash = hash_password(pwd)
     user.must_change_password = True
     user.failed_attempts = 0
     user.locked_until = None
     db.commit()
-    return {"ok": True, "default_password": DEFAULT_PASSWORD}
+    return {"ok": True, "default_password": pwd}
 
 
 @router.post("/users/batch-update")
@@ -152,17 +160,18 @@ def batch_reset_password(
     _: User = Depends(require_admin),
 ):
     """批量重置密码为默认密码（不含管理员）。"""
+    pwd = _default_password()
     count = 0
     for uid in data.user_ids:
         user = db.get(User, uid)
         if user is not None and user.role.value != "admin":
-            user.password_hash = hash_password(DEFAULT_PASSWORD)
+            user.password_hash = hash_password(pwd)
             user.must_change_password = True
             user.failed_attempts = 0
             user.locked_until = None
             count += 1
     db.commit()
-    return {"ok": True, "count": count}
+    return {"ok": True, "count": count, "default_password": pwd}
 
 
 @router.post("/users/batch-delete")

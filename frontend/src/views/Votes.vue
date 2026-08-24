@@ -98,7 +98,7 @@
 
     <!-- 时间选择 -->
     <van-popup v-model:show="showTimePicker" position="bottom" round>
-      <van-picker v-model="timeValue" :columns="timeColumns" @confirm="onTimeConfirm" @cancel="showTimePicker = false" />
+      <van-time-picker v-model="timeValue" title="选择时间" @confirm="onTimeConfirm" @cancel="showTimePicker = false" />
     </van-popup>
   </div>
 </template>
@@ -127,13 +127,6 @@ const dateValue = ref([])
 const timeValue = ref(['08', '00'])
 const timeField = ref('start_time')
 const pendingDate = ref('')
-
-const hourValues = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
-const minuteValues = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
-const timeColumns = [
-  { text: '时', values: hourValues },
-  { text: '分', values: minuteValues },
-]
 
 const form = ref({
   title: '',

@@ -130,6 +130,7 @@ def transfer(
             account_id=data.from_account_id,
             note=f"结转转出至「{to_acc.name}」{(' ' + note) if data.note else ''}",
             created_by=admin.id,
+            is_transfer=True,
         )
     )
     db.add(
@@ -139,6 +140,7 @@ def transfer(
             account_id=data.to_account_id,
             note=f"结转转入自「{from_acc.name}」{(' ' + note) if data.note else ''}",
             created_by=admin.id,
+            is_transfer=True,
         )
     )
     db.commit()
@@ -178,10 +180,23 @@ def get_balance(
         expense = db.scalar(
             select(func.coalesce(func.sum(Transaction.amount), 0)).where(*expense_conds)
         )
+        # 结转产生的内部调拨，不计入总收入/总支出
+        transfer_income = db.scalar(
+            select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+                *income_conds, Transaction.is_transfer == True
+            )
+        )
+        transfer_expense = db.scalar(
+            select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+                *expense_conds, Transaction.is_transfer == True
+            )
+        )
         income = round(float(income or 0), 2)
         expense = round(float(expense or 0), 2)
-        total_income += income
-        total_expense += expense
+        transfer_income = round(float(transfer_income or 0), 2)
+        transfer_expense = round(float(transfer_expense or 0), 2)
+        total_income += income - transfer_income
+        total_expense += expense - transfer_expense
         accounts.append(
             {
                 "account_id": acc.id,

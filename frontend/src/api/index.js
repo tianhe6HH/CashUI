@@ -16,6 +16,8 @@ export const transfer = (data) => request.post('/transfer', data)
 // 记账
 export const getTransactions = (params) => request.get('/transactions', { params })
 export const createTransaction = (data) => request.post('/transactions', data)
+export const deleteTransaction = (id) => request.delete(`/transactions/${id}`)
+export const deleteTransactionsRange = (params) => request.delete('/transactions', { params })
 
 // 出资人
 export const getFunders = () => request.get('/funders')

@@ -71,7 +71,7 @@
         <van-date-picker v-model="editDateValue" title="选择日期" @confirm="onEditDateConfirm" @cancel="showEditDate = false" />
       </van-popup>
       <van-popup v-model:show="showEditTime" position="bottom" round>
-        <van-picker v-model="editTimeValue" :columns="timeColumns" @confirm="onEditTimeConfirm" @cancel="showEditTime = false" />
+        <van-time-picker v-model="editTimeValue" title="选择时间" @confirm="onEditTimeConfirm" @cancel="showEditTime = false" />
       </van-popup>
     </div>
   </div>
@@ -100,13 +100,6 @@ const editParticipantIds = ref([])
 const editDateValue = ref([])
 const editTimeValue = ref(['08', '00'])
 const editPendingDate = ref('')
-
-const hourValues = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
-const minuteValues = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
-const timeColumns = [
-  { text: '时', values: hourValues },
-  { text: '分', values: minuteValues },
-]
 
 const myOptionIds = computed(() => vote.value.my_option_ids || [])
 

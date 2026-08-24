@@ -22,14 +22,16 @@ def verify_password(password: str, hashed: str) -> bool:
         return False
 
 
-def create_access_token(user_id: int, role: str) -> str:
-    """签发 JWT，包含用户 id 与角色。"""
+def create_access_token(user_id: int, role: str, ip: str = "") -> str:
+    """签发 JWT，包含用户 id 与角色；可选绑定登录 IP。"""
     payload = {
         "sub": str(user_id),
         "role": role,
         "exp": datetime.now(timezone.utc)
         + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     }
+    if ip:
+        payload["ip"] = ip
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 

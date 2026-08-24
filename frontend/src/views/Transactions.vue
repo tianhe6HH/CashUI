@@ -14,6 +14,7 @@
       <van-field :model-value="endDate" readonly is-link label="止" placeholder="结束日期" class="date-field" @click="openDatePicker('end')" />
       <van-button size="small" type="primary" @click="reload">筛选</van-button>
       <van-button size="small" @click="clearDate">清除</van-button>
+      <van-button v-if="auth.isAdmin" size="small" type="danger" @click="removeRange">删除时段</van-button>
     </div>
 
     <van-cell-group inset v-for="t in items" :key="t.id" style="margin-top: 8px">
@@ -28,6 +29,9 @@
         </template>
         <template #value>
           <span class="time">{{ (t.created_at || '').replace('T', ' ').slice(0, 16) }}</span>
+        </template>
+        <template #right-icon>
+          <van-button v-if="auth.isAdmin" size="small" type="danger" @click.stop="removeOne(t)">删除</van-button>
         </template>
       </van-cell>
     </van-cell-group>
@@ -115,9 +119,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getTransactions, createTransaction, getFunders, getAccounts } from '../api'
+import { getTransactions, createTransaction, getFunders, getAccounts, deleteTransaction, deleteTransactionsRange } from '../api'
 import { useAuthStore } from '../stores/auth'
-import { showToast } from 'vant'
+import { showToast, showConfirmDialog } from 'vant'
 
 const auth = useAuthStore()
 const items = ref([])
@@ -239,6 +243,43 @@ function clearDate() {
   reload()
 }
 
+async function removeOne(t) {
+  const typeLabel = t.type === 'income' ? '收入' : '支出'
+  try {
+    await showConfirmDialog({
+      title: '删除记录',
+      message: `确定删除这笔${typeLabel} ¥${t.amount} 的记录吗？删除后相关科目结余将自动更新。`,
+    })
+  } catch (e) {
+    return
+  }
+  try {
+    await deleteTransaction(t.id)
+    showToast('已删除')
+    reload()
+  } catch (e) {}
+}
+
+async function removeRange() {
+  if (!startDate.value || !endDate.value) {
+    showToast('请先选择开始日期和结束日期')
+    return
+  }
+  try {
+    await showConfirmDialog({
+      title: '删除时间段记录',
+      message: `确定删除 ${startDate.value} 至 ${endDate.value} 期间的所有收支记录吗？此操作不可恢复。`,
+    })
+  } catch (e) {
+    return
+  }
+  try {
+    const res = await deleteTransactionsRange({ start_date: startDate.value, end_date: endDate.value })
+    showToast(`已删除 ${res.deleted} 条记录`)
+    reload()
+  } catch (e) {}
+}
+
 async function submit() {
   if (!form.value.account_id) {
     showToast('请选择科目')
@@ -271,6 +312,7 @@ onMounted(() => {
 .filter-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   padding: 8px 16px;
   gap: 8px;
   background: #fff;

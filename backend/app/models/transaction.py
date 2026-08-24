@@ -2,7 +2,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import String, Enum, DateTime, func, ForeignKey, Numeric
+from sqlalchemy import String, Enum, DateTime, func, ForeignKey, Numeric, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -36,6 +36,10 @@ class Transaction(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
+    )
+    # 科目结转产生的内部调拨记录（不计入总收入/总支出，但仍影响各科目结余）
+    is_transfer: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0"
     )
 
     # 关系

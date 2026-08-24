@@ -1,6 +1,6 @@
 """记账接口：收入（缴款）/ 支出（垫付），按科目专款专用。"""
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
@@ -128,3 +128,39 @@ def create_transaction(
     db.commit()
     db.refresh(t)
     return _to_out(t)
+
+
+@router.delete("/transactions/{transaction_id}")
+def delete_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """删除单条收支记录（仅管理员）。"""
+    t = db.get(Transaction, transaction_id)
+    if t is None:
+        raise HTTPException(status_code=404, detail="记录不存在")
+    db.delete(t)
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/transactions")
+def delete_transactions_range(
+    start_date: str = Query(...),
+    end_date: str = Query(...),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """按时间段删除收支记录（仅管理员，起止日期均必填）。"""
+    if start_date > end_date:
+        raise HTTPException(status_code=400, detail="开始日期不能晚于结束日期")
+
+    result = db.execute(
+        delete(Transaction).where(
+            func.date(Transaction.created_at) >= start_date,
+            func.date(Transaction.created_at) <= end_date,
+        )
+    )
+    db.commit()
+    return {"deleted": result.rowcount}

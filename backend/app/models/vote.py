@@ -72,6 +72,8 @@ class VoteParticipant(Base):
     vote_id: Mapped[int] = mapped_column(ForeignKey("votes.id"))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
 
+    user = relationship("User")
+
 
 class VoteBallot(Base):
     """投票记录（匿名仅在展示层生效）。"""
