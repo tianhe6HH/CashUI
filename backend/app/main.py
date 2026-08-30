@@ -5,7 +5,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database import Base, engine
-from app.api import auth, users, balance, transactions, funders, activities, votes, reports
+from app.api import auth, users, balance, transactions, funders, activities, votes, reports, data
 from app.services.scheduler import start_scheduler
 
 
@@ -52,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(activities.router, prefix=prefix)
     app.include_router(votes.router, prefix=prefix)
     app.include_router(reports.router, prefix=prefix)
+    app.include_router(data.router, prefix=prefix)
 
     @app.on_event("startup")
     def on_startup():

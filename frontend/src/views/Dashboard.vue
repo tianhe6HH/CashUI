@@ -24,12 +24,14 @@
         <van-button round block plain type="primary" @click="openTransfer">科目结转</van-button>
       </div>
 
-      <!-- 时间段筛选 -->
-      <van-cell-group inset title="按时间段查看收支" style="margin-top: 16px">
+      <!-- 时间段筛选（仅管理员和高级账号） -->
+      <van-cell-group v-if="auth.isAdvanced" inset title="按时间段查看收支" style="margin-top: 16px">
         <div class="filter-bar">
-          <van-field :model-value="startDate" readonly is-link placeholder="开始日期" class="date-field" @click="openDatePicker('start')" />
-          <span class="sep">至</span>
-          <van-field :model-value="endDate" readonly is-link placeholder="结束日期" class="date-field" @click="openDatePicker('end')" />
+          <el-date-picker v-if="isDesktop" v-model="startDate" type="date" value-format="YYYY-MM-DD" placeholder="开始日期" class="date-picker" />
+          <el-date-picker v-if="isDesktop" v-model="endDate" type="date" value-format="YYYY-MM-DD" placeholder="结束日期" class="date-picker" />
+          <van-field v-if="!isDesktop" v-model="startDate" readonly is-link placeholder="开始日期 YYYY-MM-DD" class="date-field" @click="openDatePicker('start')" />
+          <span v-if="!isDesktop" class="sep">至</span>
+          <van-field v-if="!isDesktop" v-model="endDate" readonly is-link placeholder="结束日期 YYYY-MM-DD" class="date-field" @click="openDatePicker('end')" />
           <van-button size="small" type="primary" class="query-btn" @click="queryRange">查询</van-button>
         </div>
         <van-cell v-if="rangeResult" :label="'收入 ¥' + rangeResult.total_income + ' · 支出 ¥' + rangeResult.total_expense">
@@ -50,7 +52,7 @@
         </van-cell>
       </van-cell-group>
 
-      <van-cell-group inset title="功能" style="margin-top: 16px">
+      <van-cell-group v-if="!isDesktop" inset title="功能" style="margin-top: 16px">
         <van-cell title="记账（收入/支出）" is-link v-if="auth.isAdmin" @click="$router.push('/transactions')" />
         <van-cell title="缴款人" is-link v-if="auth.isAdvanced" @click="$router.push('/funders')" />
         <van-cell title="活动管理" is-link @click="$router.push('/activities')" />
@@ -58,6 +60,7 @@
         <van-cell title="报表下载" is-link v-if="auth.isAdvanced" @click="$router.push('/reports')" />
         <van-cell title="账号管理" is-link v-if="auth.isAdmin" @click="$router.push('/users')" />
         <van-cell title="科目管理" is-link v-if="auth.isAdmin" @click="$router.push('/accounts')" />
+        <van-cell title="数据管理" is-link v-if="auth.isAdmin" @click="$router.push('/data')" />
       </van-cell-group>
 
       <div style="margin: 24px 16px">
@@ -96,10 +99,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getBalance, getTransactions, transfer } from '../api'
 import { useAuthStore } from '../stores/auth'
+import { useIsDesktop } from '../composables/useIsDesktop'
 import { showToast } from 'vant'
 
 const router = useRouter()
 const auth = useAuthStore()
+const { isDesktop } = useIsDesktop()
 const balance = ref({})
 const startDate = ref('')
 const endDate = ref('')

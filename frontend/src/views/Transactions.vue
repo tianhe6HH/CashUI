@@ -10,11 +10,17 @@
 
     <!-- 时间段筛选 -->
     <div class="filter-bar">
-      <van-field :model-value="startDate" readonly is-link label="起" placeholder="开始日期" class="date-field" @click="openDatePicker('start')" />
-      <van-field :model-value="endDate" readonly is-link label="止" placeholder="结束日期" class="date-field" @click="openDatePicker('end')" />
-      <van-button size="small" type="primary" @click="reload">筛选</van-button>
-      <van-button size="small" @click="clearDate">清除</van-button>
-      <van-button v-if="auth.isAdmin" size="small" type="danger" @click="removeRange">删除时段</van-button>
+      <!-- 桌面端：日历面板选择 -->
+      <el-date-picker v-if="isDesktop" v-model="startDate" type="date" value-format="YYYY-MM-DD" placeholder="开始日期" class="date-picker" />
+      <el-date-picker v-if="isDesktop" v-model="endDate" type="date" value-format="YYYY-MM-DD" placeholder="结束日期" class="date-picker" />
+      <!-- 手机端：滑轮选择 -->
+      <van-field v-if="!isDesktop" v-model="startDate" readonly is-link label="起" placeholder="YYYY-MM-DD" class="date-field" @click="openDatePicker('start')" />
+      <van-field v-if="!isDesktop" v-model="endDate" readonly is-link label="止" placeholder="YYYY-MM-DD" class="date-field" @click="openDatePicker('end')" />
+      <div class="filter-actions">
+        <van-button size="small" type="primary" @click="reload">筛选</van-button>
+        <van-button size="small" @click="clearDate">清除</van-button>
+        <van-button v-if="auth.isAdmin" size="small" type="danger" @click="removeRange">删除时段</van-button>
+      </div>
     </div>
 
     <van-cell-group inset v-for="t in items" :key="t.id" style="margin-top: 8px">
@@ -121,9 +127,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { getTransactions, createTransaction, getFunders, getAccounts, deleteTransaction, deleteTransactionsRange } from '../api'
 import { useAuthStore } from '../stores/auth'
+import { useIsDesktop } from '../composables/useIsDesktop'
 import { showToast, showConfirmDialog } from 'vant'
 
 const auth = useAuthStore()
+const { isDesktop } = useIsDesktop()
 const items = ref([])
 const total = ref(0)
 const page = ref(1)
@@ -319,6 +327,7 @@ onMounted(() => {
 }
 .date-field {
   flex: 1;
+  min-width: 0;
   padding: 4px 8px;
   background: #f7f8fa;
   border-radius: 6px;
@@ -331,4 +340,22 @@ onMounted(() => {
   margin: 16px 0;
 }
 .fab { position: fixed; bottom: 24px; left: 0; right: 0; text-align: center; }
+
+/* 桌面端：筛选区紧凑排版，日期输入框合理宽度，操作按钮靠右 */
+@media (min-width: 768px) {
+  .filter-bar {
+    padding: 12px 16px;
+    gap: 12px;
+    flex-wrap: nowrap;
+  }
+  .date-picker {
+    width: 180px;
+  }
+  .filter-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+}
 </style>

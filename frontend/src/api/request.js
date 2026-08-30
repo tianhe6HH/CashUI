@@ -21,7 +21,9 @@ let redirectingToLogin = false
 request.interceptors.response.use(
   (res) => res.data,
   (err) => {
-    if (err.response?.status === 401) {
+    // 登录接口的 401（如密码错误）直接提示，不做登出/跳转处理
+    const isLoginRequest = err.config?.url?.includes('/auth/login')
+    if (err.response?.status === 401 && !isLoginRequest) {
       const auth = useAuthStore()
       auth.logout()
       if (!redirectingToLogin && window.location.pathname !== '/login') {

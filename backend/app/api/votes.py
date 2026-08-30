@@ -55,7 +55,7 @@ def _vote_out(v: Vote) -> VoteOut:
         options=[VoteOptionOut.model_validate(o) for o in v.options],
         # participant_ids 仅返回发起人勾选的普通账号（高级账号自动参与，不在可编辑列表内）
         participant_ids=[
-            p.user_id for p in v.participants if p.user.role == Role.normal
+            p.user_id for p in v.participants if p.user is not None and p.user.role == Role.normal
         ],
     )
     return out

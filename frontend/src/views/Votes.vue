@@ -3,7 +3,11 @@
     <van-nav-bar title="投票" left-arrow @click-left="$router.back()" />
 
     <van-cell-group inset v-for="v in list" :key="v.id" style="margin-top: 8px" @click="$router.push('/votes/' + v.id)">
-      <van-cell :title="v.title" :label="voteLabel(v)">
+      <van-cell :title="v.title">
+        <template #label>
+          <div>{{ voteMeta(v) }}</div>
+          <div class="vote-time">{{ fmtDisplay(v.start_time) }} ~ {{ fmtDisplay(v.end_time) }}</div>
+        </template>
         <template #value>
           <van-tag :type="statusTag(v)">{{ status(v) }}</van-tag>
         </template>
@@ -33,8 +37,18 @@
         <van-field :model-value="accountName" readonly is-link label="费用科目" placeholder="选填" @click="openAccountPicker" />
         <van-field v-model="form.amount" type="number" label="金额" placeholder="选填" />
 
-        <van-field :model-value="form.start_time" readonly is-link label="开始时间" @click="openTime('start_time')" />
-        <van-field :model-value="form.end_time" readonly is-link label="结束时间" @click="openTime('end_time')" />
+        <div v-if="isDesktop" class="datetime-row">
+          <span class="dt-label">开始时间</span>
+          <el-date-picker v-model="startDatePart" type="date" value-format="YYYY-MM-DD" placeholder="开始日期" class="date-part" />
+          <el-time-picker v-model="startTimePart" format="HH:mm" value-format="HH:mm" placeholder="时间" class="time-part" />
+        </div>
+        <div v-if="isDesktop" class="datetime-row">
+          <span class="dt-label">结束时间</span>
+          <el-date-picker v-model="endDatePart" type="date" value-format="YYYY-MM-DD" placeholder="结束日期" class="date-part" />
+          <el-time-picker v-model="endTimePart" format="HH:mm" value-format="HH:mm" placeholder="时间" class="time-part" />
+        </div>
+        <van-field v-if="!isDesktop" v-model="form.start_time" readonly is-link label="开始时间" placeholder="YYYY-MM-DD HH:mm" @click="openTime('start_time')" />
+        <van-field v-if="!isDesktop" v-model="form.end_time" readonly is-link label="结束时间" placeholder="YYYY-MM-DD HH:mm" @click="openTime('end_time')" />
 
         <!-- 选项 -->
         <van-cell-group title="选项（可增删改，备注选填）">
@@ -74,6 +88,9 @@
         <h4>选择参与人</h4>
         <p class="hint">高级账号自动参与，无需选择；管理员不参与</p>
         <van-field v-model="participantKeyword" placeholder="输入用户名搜索" />
+        <div class="select-all-bar">
+          <van-checkbox :model-value="allSelected" @update:model-value="toggleSelectAll">全选</van-checkbox>
+        </div>
         <van-checkbox-group v-model="form.participant_ids">
           <div v-for="u in shownNormalUsers" :key="u.id" class="user-item">
             <van-checkbox :name="u.id">{{ u.username }}</van-checkbox>
@@ -107,9 +124,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getVotes, createVote, getAccounts, selectableUsers } from '../api'
+import { useIsDesktop } from '../composables/useIsDesktop'
 import { showToast } from 'vant'
 
 const router = useRouter()
+const { isDesktop } = useIsDesktop()
 const list = ref([])
 const showCreate = ref(false)
 const showParticipantPicker = ref(false)
@@ -144,6 +163,24 @@ const form = ref({
 
 const accountName = computed(() => accountColumns.value.find((a) => a.value === form.value.account_id)?.text || '')
 
+// 桌面端日期/时间分开：拆出日期和时间两部分，再合并回 form.start_time/end_time
+const startDatePart = computed({
+  get: () => (form.value.start_time || '').split(' ')[0] || '',
+  set: (v) => { form.value.start_time = `${v} ${startTimePart.value}` },
+})
+const startTimePart = computed({
+  get: () => (form.value.start_time || '').split(' ')[1] || '08:00',
+  set: (v) => { form.value.start_time = `${startDatePart.value || '2026-01-01'} ${v}` },
+})
+const endDatePart = computed({
+  get: () => (form.value.end_time || '').split(' ')[0] || '',
+  set: (v) => { form.value.end_time = `${v} ${endTimePart.value}` },
+})
+const endTimePart = computed({
+  get: () => (form.value.end_time || '').split(' ')[1] || '08:00',
+  set: (v) => { form.value.end_time = `${endDatePart.value || '2026-01-01'} ${v}` },
+})
+
 const filteredNormalUsers = computed(() => {
   const kw = participantKeyword.value.trim()
   if (!kw) return normalUsers.value
@@ -151,6 +188,15 @@ const filteredNormalUsers = computed(() => {
 })
 const shownNormalUsers = computed(() => filteredNormalUsers.value.slice(0, shownCount.value))
 const hasMore = computed(() => shownCount.value < filteredNormalUsers.value.length)
+
+const allNormalIds = computed(() => normalUsers.value.map((u) => u.id))
+const allSelected = computed(() => {
+  const ids = allNormalIds.value
+  return ids.length > 0 && ids.every((id) => form.value.participant_ids.includes(id))
+})
+function toggleSelectAll(v) {
+  form.value.participant_ids = v ? [...allNormalIds.value] : []
+}
 
 const participantSummary = computed(() => {
   const n = form.value.participant_ids.length
@@ -168,11 +214,10 @@ function status(v) {
   return '进行中'
 }
 function statusTag(v) { return { 未开始: 'default', 进行中: 'success', 已结束: 'primary' }[status(v)] }
-function voteLabel(v) {
+function voteMeta(v) {
   const parts = []
   if (v.account_name) parts.push(v.account_name)
   if (v.amount != null) parts.push('¥' + v.amount)
-  parts.push(`${fmtDisplay(v.start_time)} ~ ${fmtDisplay(v.end_time)}`)
   return parts.join(' · ')
 }
 
@@ -220,6 +265,7 @@ function openTime(field) {
   dateValue.value = d.split('-')
   showDatePicker.value = true
 }
+
 function onDateConfirm({ selectedValues }) {
   const [y, m, d] = selectedValues
   pendingDate.value = `${y}-${m}-${d}`
@@ -281,5 +327,28 @@ onMounted(async () => {
 .submit-bar { margin-top: 16px; padding-bottom: 16px; }
 .participant-picker { padding: 16px; max-height: 70vh; overflow-y: auto; }
 .user-item { padding: 8px 16px; border-bottom: 1px solid #f2f2f2; }
+.select-all-bar { padding: 8px 16px; border-bottom: 1px solid #f2f2f2; }
 .hint { color: #999; font-size: 12px; padding: 4px 0; }
+.vote-time { color: #969799; font-size: 12px; margin-top: 2px; }
+.time-picker { width: 100%; margin: 4px 0; }
+.datetime-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+}
+.dt-label {
+  flex-shrink: 0;
+  width: 64px;
+  font-size: 14px;
+  color: #4b5563;
+}
+.date-part {
+  flex: 1.4;
+  min-width: 0;
+}
+.time-part {
+  flex: 1;
+  min-width: 0;
+}
 </style>

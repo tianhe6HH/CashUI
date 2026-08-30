@@ -22,6 +22,8 @@ export const deleteTransactionsRange = (params) => request.delete('/transactions
 // 出资人
 export const getFunders = () => request.get('/funders')
 export const createFunder = (data) => request.post('/funders', data)
+export const updateFunder = (id, data) => request.put(`/funders/${id}`, data)
+export const deleteFunder = (id) => request.delete(`/funders/${id}`)
 export const getFunderDetail = () => request.get('/funders/detail')
 
 // 活动
@@ -54,3 +56,7 @@ export const batchResetPassword = (data) => request.post('/users/batch-reset-pas
 export const batchDelete = (data) => request.post('/users/batch-delete', data)
 export const importUsers = (data) => request.post('/users/import', data)
 export const exportUsers = () => request.get('/users/export', { responseType: 'blob' })
+
+// 数据导出/导入（记账、活动、投票、账号、科目、缴款人）
+export const exportData = (scope = 'all') => request.get('/data/export', { params: { scope }, responseType: 'blob' })
+export const importData = (data, scope = 'all') => request.post('/data/import', data, { params: { scope } })

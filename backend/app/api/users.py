@@ -5,11 +5,11 @@ import secrets
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import User, Role
+from app.models import User, Role, Funder, VoteParticipant, VoteBallot
 from app.core.security import hash_password
 from app.core.deps import require_admin, get_current_user
 from app.config import DEFAULT_PASSWORD
@@ -115,9 +115,17 @@ def delete_user(
         raise HTTPException(status_code=404, detail="用户不存在")
     if user.id == admin.id:
         raise HTTPException(status_code=400, detail="不能删除自己")
+    _cleanup_user_related(db, user_id)
     db.delete(user)
     db.commit()
     return {"ok": True}
+
+
+def _cleanup_user_related(db: Session, user_id: int):
+    """删除账号时，级联清理关联的缴款人、投票参与、投票记录。"""
+    db.execute(delete(Funder).where(Funder.user_id == user_id))
+    db.execute(delete(VoteParticipant).where(VoteParticipant.user_id == user_id))
+    db.execute(delete(VoteBallot).where(VoteBallot.user_id == user_id))
 
 
 @router.post("/users/{user_id}/reset-password")
@@ -188,6 +196,7 @@ def batch_delete(
     for uid in data.user_ids:
         user = db.get(User, uid)
         if user is not None and user.role.value != "admin":
+            _cleanup_user_related(db, uid)
             db.delete(user)
             count += 1
     db.commit()

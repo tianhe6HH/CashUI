@@ -287,4 +287,12 @@ onMounted(load)
   font-size: 12px;
   padding: 8px 16px;
 }
+
+/* 桌面端：工具栏按钮可换行 */
+@media (min-width: 768px) {
+  .toolbar,
+  .batch-bar {
+    flex-wrap: wrap;
+  }
+}
 </style>

@@ -11,23 +11,30 @@
         <van-cell title="状态" :value="status" />
       </van-cell-group>
 
-      <!-- 选项列表 -->
+      <!-- 选项列表 + 投票区（合并为一个卡片） -->
       <van-cell-group inset title="选项">
-        <van-cell v-for="o in vote.options" :key="o.id" :title="o.text" :label="o.note || ''">
-          <template #value>
-            <van-tag v-if="myOptionIds.includes(o.id)" type="success">已选</van-tag>
-          </template>
-        </van-cell>
+        <!-- 可投票：直接勾选 -->
+        <van-checkbox-group v-if="vote.can_vote" v-model="selected" :max="vote.allow_multiselect ? undefined : 1">
+          <van-checkbox v-for="o in vote.options" :key="o.id" :name="o.id" class="vote-checkbox">
+            <div class="option-text">{{ o.text }}</div>
+            <div v-if="o.note" class="option-note">{{ o.note }}</div>
+          </van-checkbox>
+        </van-checkbox-group>
+        <!-- 不可投票：只读展示 + 已选标记 -->
+        <template v-else>
+          <van-cell v-for="o in vote.options" :key="o.id" :title="o.text" :label="o.note || ''">
+            <template #value>
+              <van-tag v-if="myOptionIds.includes(o.id)" type="success">已选</van-tag>
+            </template>
+          </van-cell>
+        </template>
       </van-cell-group>
 
       <!-- 投票区 -->
       <div v-if="vote.can_vote">
-        <van-cell-group inset title="请选择">
-          <van-checkbox-group v-model="selected" :max="vote.allow_multiselect ? undefined : 1">
-            <van-checkbox v-for="o in vote.options" :key="o.id" :name="o.id" class="vote-checkbox">{{ o.text }}</van-checkbox>
-          </van-checkbox-group>
+        <van-cell-group inset style="margin-top: 8px">
+          <van-field v-model="note" type="textarea" rows="2" label="备注" placeholder="选填（可补充说明你的选择）" />
         </van-cell-group>
-        <van-field v-model="note" type="textarea" rows="2" label="备注" placeholder="选填" />
         <div style="margin: 12px 16px">
           <van-button round block type="primary" @click="submit">提交投票</van-button>
         </div>
@@ -53,7 +60,11 @@
       <van-popup v-model:show="showEdit" position="bottom" round style="max-height: 85%">
         <div class="edit-form">
           <h3>修改投票</h3>
-          <van-field :model-value="editEndTime" readonly is-link label="结束时间" @click="openEditDate" />
+          <div v-if="isDesktop" class="datetime-row">
+            <el-date-picker v-model="editDatePart" type="date" value-format="YYYY-MM-DD" placeholder="结束日期" class="date-part" />
+            <el-time-picker v-model="editTimePart" format="HH:mm" value-format="HH:mm" placeholder="结束时间" class="time-part" />
+          </div>
+          <van-field v-if="!isDesktop" v-model="editEndTime" readonly is-link label="结束时间" placeholder="YYYY-MM-DD HH:mm" @click="openEditDate" />
           <van-cell-group title="参与人（普通账号）">
             <van-field v-model="editKeyword" placeholder="输入用户名搜索" />
             <van-checkbox-group v-model="editParticipantIds">
@@ -82,11 +93,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getVote, castVote, updateVote, deleteVote, selectableUsers } from '../api'
 import { useAuthStore } from '../stores/auth'
+import { useIsDesktop } from '../composables/useIsDesktop'
 import { showToast, showConfirmDialog } from 'vant'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const { isDesktop } = useIsDesktop()
 const vote = ref({})
 const selected = ref([])
 const note = ref('')
@@ -102,6 +115,16 @@ const editTimeValue = ref(['08', '00'])
 const editPendingDate = ref('')
 
 const myOptionIds = computed(() => vote.value.my_option_ids || [])
+
+// 桌面端日期/时间分开
+const editDatePart = computed({
+  get: () => (editEndTime.value || '').split(' ')[0] || '',
+  set: (v) => { editEndTime.value = `${v} ${editTimePart.value}` },
+})
+const editTimePart = computed({
+  get: () => (editEndTime.value || '').split(' ')[1] || '08:00',
+  set: (v) => { editEndTime.value = `${editDatePart.value || '2026-01-01'} ${v}` },
+})
 
 const status = computed(() => {
   if (!vote.value.id) return ''
@@ -151,6 +174,7 @@ function openEditDate() {
   editDateValue.value = d.split('-')
   showEditDate.value = true
 }
+
 function onEditDateConfirm({ selectedValues }) {
   const [y, m, d] = selectedValues
   editPendingDate.value = `${y}-${m}-${d}`
@@ -200,4 +224,14 @@ onMounted(async () => {
 .edit-form { padding: 16px; max-height: 80vh; overflow-y: auto; }
 .submit-bar { margin-top: 16px; padding-bottom: 16px; }
 .vote-checkbox { padding: 8px 16px; }
+.time-picker { width: 100%; margin: 4px 0; }
+.option-text { font-size: 15px; color: #1f2937; }
+.option-note { font-size: 12px; color: #969799; margin-top: 2px; }
+.datetime-row {
+  display: flex;
+  gap: 12px;
+  margin: 4px 0;
+}
+.date-part { flex: 1.4; min-width: 0; }
+.time-part { flex: 1; min-width: 0; }
 </style>

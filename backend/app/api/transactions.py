@@ -21,6 +21,9 @@ def _to_out(t: Transaction) -> TransactionOut:
         out.account_name = t.account.name
     if t.funder_id is not None and t.funder is not None:
         out.funder_name = t.funder.name
+    elif t.type == TransactionType.income:
+        # 收入记录原本关联的缴款人被删除后，显示为「未知」
+        out.funder_name = "未知"
     return out
 
 

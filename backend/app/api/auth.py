@@ -1,5 +1,6 @@
 """认证接口：登录 / 登出 / 当前用户。"""
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy import select
@@ -74,7 +75,7 @@ def login(data: LoginRequest, db: Session = Depends(get_db), request: Request = 
                     detail="密码连续错误 5 次，请 3 分钟后再输入",
                 )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="密码输入错误，请重试"
         )
 
     # 登录成功，重置失败次数与锁定

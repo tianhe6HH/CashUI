@@ -38,6 +38,11 @@ class FunderCreate(BaseModel):
     type: str  # 部长 / 项目经理 / PL
 
 
+class FunderUpdate(BaseModel):
+    type: str | None = None  # 部长 / 项目经理 / PL
+    user_id: int | None = None  # 可选更换关联账号
+
+
 class FunderOut(BaseModel):
     id: int
     name: str
