@@ -1,4 +1,4 @@
-"""出资人模型（资金来源主体：部长 / 项目经理 / 组长）。"""
+"""出资人模型（资金来源主体：部长 / 项目经理 / PL）。"""
 import enum
 from datetime import datetime
 
@@ -11,7 +11,7 @@ from app.database import Base
 class FunderType(str, enum.Enum):
     minister = "部长"
     manager = "项目经理"
-    leader = "组长"
+    leader = "PL"
 
 
 class Funder(Base):

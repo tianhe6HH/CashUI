@@ -35,7 +35,7 @@ class ActivityOut(BaseModel):
 
 class FunderCreate(BaseModel):
     user_id: int  # 从已有账号中选择
-    type: str  # 部长 / 项目经理 / 组长
+    type: str  # 部长 / 项目经理 / PL
 
 
 class FunderOut(BaseModel):

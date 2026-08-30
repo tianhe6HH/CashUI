@@ -1,4 +1,4 @@
-"""缴款人接口（资金来源主体：部长 / 项目经理 / 组长）。"""
+"""缴款人接口（资金来源主体：部长 / 项目经理 / PL）。"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
@@ -26,7 +26,7 @@ def create_funder(
     _: User = Depends(require_advanced),
 ):
     """新增缴款人：从已有账号中选择。"""
-    if data.type not in ("部长", "项目经理", "组长"):
+    if data.type not in ("部长", "项目经理", "PL"):
         raise HTTPException(status_code=400, detail="无效的缴款人类型")
     user = db.get(User, data.user_id)
     if user is None:

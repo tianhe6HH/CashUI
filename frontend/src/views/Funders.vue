@@ -20,7 +20,7 @@
             <van-radio-group v-model="form.type" direction="horizontal">
               <van-radio name="部长">部长</van-radio>
               <van-radio name="项目经理">项目经理</van-radio>
-              <van-radio name="组长">组长</van-radio>
+              <van-radio name="PL">PL</van-radio>
             </van-radio-group>
           </template>
         </van-field>
