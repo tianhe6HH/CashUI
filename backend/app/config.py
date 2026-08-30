@@ -19,9 +19,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 默认 24 小时
 
     # 所有账号的默认密码（新建/重置时使用）。
-    # 为避免开源泄露，默认密码不硬编码在代码里，必须在 .env 中配置；
-    # 未配置时，init_db 会生成随机密码并打印。
-    DEFAULT_PASSWORD: str = ""
+    # 统一默认密码，可通过 .env 中的 DEFAULT_PASSWORD 覆盖。
+    DEFAULT_PASSWORD: str = "123456"
 
     # 是否启用「登录 IP 绑定」：开启后，登录时的 IP 发生变化会导致令牌失效，
     # 需重新登录。手机网络切换会导致 IP 变化，请谨慎开启。

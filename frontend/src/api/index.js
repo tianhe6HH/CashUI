@@ -53,3 +53,4 @@ export const batchUpdateUsers = (data) => request.post('/users/batch-update', da
 export const batchResetPassword = (data) => request.post('/users/batch-reset-password', data)
 export const batchDelete = (data) => request.post('/users/batch-delete', data)
 export const importUsers = (data) => request.post('/users/import', data)
+export const exportUsers = () => request.get('/users/export', { responseType: 'blob' })

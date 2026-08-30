@@ -1,7 +1,10 @@
 """账号管理接口：仅管理员。"""
+import csv
+import io
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -210,3 +213,25 @@ def import_users(
     for u in created:
         db.refresh(u)
     return created
+
+
+@router.get("/users/export")
+def export_users(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """导出所有账号为 CSV（username,password,role），密码列填默认密码，可手动改明文后由脚本导入。"""
+    users = db.scalars(select(User).order_by(User.id)).all()
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["username", "password", "role"])
+    for u in users:
+        # 数据库只存哈希，无法还原明文，这里统一填默认密码占位；
+        # 管理员可手动改成明文密码，再通过 manage_accounts.py import 写回。
+        writer.writerow([u.username, DEFAULT_PASSWORD, u.role.value])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=accounts.csv"},
+    )

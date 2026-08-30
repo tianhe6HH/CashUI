@@ -6,6 +6,7 @@
     <div class="toolbar">
       <van-button size="small" type="primary" @click="openCreate">新增账号</van-button>
       <van-button size="small" type="primary" plain @click="openImport">批量导入</van-button>
+      <van-button size="small" type="primary" plain @click="onExport">导出账号</van-button>
       <van-button size="small" :type="batchMode ? 'warning' : 'default'" @click="toggleBatchMode">
         批量修改
       </van-button>
@@ -96,7 +97,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   getUsers, createUser, deleteUser, resetPassword,
-  updateUser, batchUpdateUsers, batchResetPassword, batchDelete, importUsers,
+  updateUser, batchUpdateUsers, batchResetPassword, batchDelete, importUsers, exportUsers,
 } from '../api'
 import { showToast, showConfirmDialog } from 'vant'
 
@@ -198,6 +199,19 @@ async function submitImport() {
     showToast(`成功导入 ${res.length} 个账号`)
     showImport.value = false
     load()
+  } catch (e) {}
+}
+
+async function onExport() {
+  try {
+    const blob = await exportUsers()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'accounts.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+    showToast('已导出 accounts.csv')
   } catch (e) {}
 }
 

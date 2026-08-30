@@ -42,7 +42,7 @@ def login(data: LoginRequest, db: Session = Depends(get_db), request: Request = 
                 minutes = max(1, (remain + 59) // 60)
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"密码错误次数过多，请 {minutes} 分钟后再试",
+                    detail=f"密码错误次数过多，请 {minutes} 分钟后再输入",
                 )
             # 锁定已到期，解除锁定
             user.locked_until = None
@@ -66,12 +66,12 @@ def login(data: LoginRequest, db: Session = Depends(get_db), request: Request = 
             if user.failed_attempts == 3:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="密码连续错误 3 次，请 1 分钟后再试",
+                    detail="密码连续错误 3 次，请 1 分钟后再输入",
                 )
             if user.failed_attempts == 5:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="密码连续错误 5 次，请 3 分钟后再试",
+                    detail="密码连续错误 5 次，请 3 分钟后再输入",
                 )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误"
