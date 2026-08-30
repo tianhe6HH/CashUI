@@ -3,7 +3,8 @@
 面向部门的备用金记账与投票系统。手机浏览器直接访问，用于记录备用金的收入（缴款）、支出（垫付），并对费用支出、资金结转进行民主投票表决。
 
 - 后端：Python + FastAPI + SQLite
-- 前端：Vue 3 + Vite + Vant（移动端优先）
+- 前端：Vue 3 + Vite + Vant（移动端）+ Element Plus（桌面端日期时间选择）
+- 响应式：手机端移动布局，桌面端侧边栏布局
 - 部署：腾讯云 CVM + Nginx，HTTP 访问
 
 ---
@@ -20,11 +21,12 @@
 | 查看收入明细 | ✅ | ✅ | ❌ |
 | 科目管理（增删改） | ✅ | ❌ | ❌ |
 | 科目结转 | ✅ | ❌ | ❌ |
-| 缴款人管理 | ✅ | ✅ | ❌ |
+| 缴款人管理（增删改） | ✅ | ✅ | ❌ |
 | 新增活动 | ✅ | ✅ | ❌ |
 | 发起/参与投票 | ✅ | ✅ | ✅ |
 | 下载报表 | ✅ | ✅ | ❌ |
 | 账号管理 | ✅ | ❌ | ❌ |
+| 数据导出/导入 | ✅ | ❌ | ❌ |
 
 ### 1.2 专款专用记账
 
@@ -38,22 +40,30 @@
 
 ### 1.3 投票工具
 
-- 所有人可发起；参与人筛选（高级账号自动参与、普通账号可选）
+- 所有人可发起；参与人筛选（高级账号自动参与、普通账号可选，支持一键全选）
 - 选项自定义 + 备注，发起前可增删改
-- 日历方式选择起止时间（精确到分钟）
+- 起止时间可精确到分钟；桌面端日期、时间分开选择
 - 结果分层可见：普通账号投票期间只看自己选择、结束后看结果；高级/管理员/发起人实时看结果
 
 ### 1.4 报表 & 活动
 
 - 月度财务报表（Excel，每月自动生成）：收支汇总 + 收入明细 + 支出明细
+- 每次登录清空历史报表，报表列表反映最新数据
 - 活动管理：民主生活会 / 团建 / 年末聚餐；办团建的当月自动校验不开例会
 
 ### 1.5 账号安全
 
 - 默认密码 `123456` + 首次登录强制改密
-- 密码 bcrypt 哈希，JWT 认证
+- 密码 bcrypt 哈希，JWT 认证；密码错误时提示「密码输入错误，请重试」
 - 登录失败限流：普通/高级账号 3 次锁 1 分钟 → 5 次锁 3 分钟 → 10 次禁止登录并提示联系管理员重置；管理员账号不锁定
 - 批量导入 / 批量改权限 / 批量重置密码 / 批量删除 / 导出账号密码（CSV）
+
+### 1.6 数据导出/导入（仅管理员）
+
+- 支持 6 类数据：科目、缴款人、账号密码、活动、记账明细、投票
+- 网页端「数据管理」页可整体或按类别导出/导入（JSON）
+- 服务器端 `data_manager.py` 脚本同样支持（账号 CSV、业务数据 JSON）
+- 导入为「合并追加」并去重，引用不到的基础数据会跳过并提示
 
 ---
 
@@ -97,13 +107,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
 默认密码统一为 `123456`。生产环境建议通过 `.env` 的 `DEFAULT_PASSWORD` 改成自己的密码，且每个部署环境尽量用不同的密码。
 
-### 2.4 生成随机 SECRET_KEY
-
-```bash
-python3 -c "import secrets; print(secrets.token_hex(32))"
-```
-
-把输出填到 `.env` 的 `SECRET_KEY`。
+> **`.env` 生效时机**：`.env` 在程序**启动、导入模块时读取一次**，读完后配置即固化在内存中。因此修改 `.env` 后，**必须重启后端服务**才会生效：
+>
+> - 本地开发：重启 `run.py`
+> - 服务器（systemd）：`sudo systemctl restart cashui`
+>
+> 另外 `.env` 用的是相对路径（`env_file = ".env"`），读的是**启动命令所在目录**下的 `.env`，请务必先 `cd backend` 再启动。
 
 ---
 
@@ -144,21 +153,30 @@ venv/bin/python -m app.init_db
 # 4. 重新启动后端（sudo systemctl start cashui）
 ```
 
-### 3.3 账号密码管理（manage_accounts.py）
+### 3.3 数据管理（data_manager.py）
 
-> 该脚本用于在服务器上单独或批量配置账号与密码，配合「账号管理 → 导出账号」使用。
+> 该脚本用于在服务器上管理账号密码，以及导出/导入 6 类数据（科目、缴款人、账号密码、活动、记账明细、投票）。
 
 ```bash
 cd backend
 
 # 单独设置/创建某个账号（角色可选：admin / advanced / normal，默认 normal）
-venv/bin/python manage_accounts.py set 用户名 密码 [角色]
+venv/bin/python data_manager.py set 用户名 密码 [角色]
 
-# 批量导入（CSV 表头：username,password,role；密码留空则不改已有账号密码）
-venv/bin/python manage_accounts.py import accounts.csv
+# 批量导入账号（CSV 表头：username,password,role；密码留空则不改已有账号密码）
+venv/bin/python data_manager.py import-accounts accounts.csv
+
+# 导出数据为 JSON（scope 可选：all 或 accounts/funders/users/activities/transactions/votes，多个用逗号分隔）
+venv/bin/python data_manager.py export cashui-data.json [scope]
+
+# 从 JSON 合并追加导入数据（scope 可选，默认 all）
+venv/bin/python data_manager.py import-data cashui-data.json [scope]
 ```
 
-典型流程：在「账号管理」页点「导出账号」得到 `accounts.csv`，修改其中的密码列（留空=不改，填明文=设为该密码），再上传服务器用 `import` 写回。
+典型流程：
+
+- **账号**：在「账号管理」页点「导出账号」得到 `accounts.csv`，修改密码列（留空=不改，填明文=设为该密码），再上传服务器用 `import-accounts` 写回。
+- **业务数据**：在「数据管理」页点「导出」得到 `cashui-data.json`；需要恢复/迁移时，上传后 `import-data` 合并追加导入。导入会去重，引用不到的科目 / 缴款人 / 账号 / 活动会被跳过并提示。
 
 ### 3.4 备份数据库
 
@@ -199,7 +217,7 @@ refactor: 重构投票结果可见性逻辑
 2. 一次提交只做一件事，避免大杂烩提交
 3. 提交前先 `git status` 确认改动范围
 4. 提交前先 `git diff` 检查改动内容
-5. 不要提交 `venv/`、`node_modules/`、`cashui.db`、`.env`、`manage_accounts.py` 等（已写入 `.gitignore`）
+5. 不要提交 `venv/`、`node_modules/`、`cashui.db`、`.env` 等（已写入 `.gitignore`）
 
 ---
 
@@ -252,16 +270,23 @@ git config --global --unset https.proxy
 
 ---
 
-## 6. 快速部署（新服务器/上位机）
+## 6. 快速部署（Ubuntu 服务器 / Linux 上位机）
 
-> 以下以 Ubuntu 服务器为例。前提：已有一台有公网 IP 的服务器，且**安全组放行 80 端口**（HTTP）。
+支持两种部署场景，**部署命令完全相同**，区别仅在于网络环境与访问方式：
+
+| 场景 | 网络 | 访问地址 | 端口放行 | 手机访问 |
+|---|---|---|---|---|
+| **Ubuntu 服务器**（腾讯云等） | 有公网 IP | 公网 IP | 云安全组放行 80 | 任意网络 |
+| **Linux 上位机**（局域网） | 无公网 IP | 局域网 IP（如 `192.168.x.x`） | 系统防火墙放行 80 | 同一局域网/WiFi |
+
+> 两种场景都是 Linux，均使用 `apt` + `systemd` + `nginx`，下面的命令两者通用。
 
 ### 6.0 一键快速部署（推荐）
 
-项目根目录提供了 `deploy.py` 一键部署脚本，可在全新 Ubuntu/Debian 服务器上自动完成「装依赖 → 拉代码 → 后端 → systemd → 前端 → Nginx」全流程。脚本默认**就地部署**（以脚本所在目录为安装路径），因此你可以把代码放到 `/home` 下的任意路径。
+项目根目录提供了 `deploy.py` 一键部署脚本，可在全新 Ubuntu/Debian/Linux 机器上自动完成「装依赖 → 拉代码 → 后端 → systemd → 前端 → Nginx」全流程。脚本默认**就地部署**（以脚本所在目录为安装路径），因此你可以把代码放到 `/home` 下的任意路径。
 
 ```bash
-# 1. 全新服务器先拉取代码到你想放的位置（例如 /home/cashui，路径可自行指定）
+# 1. 全新机器先拉取代码到你想放的位置（例如 /home/cashui，路径可自行指定）
 sudo apt update && sudo apt install -y git
 sudo git clone https://ghproxy.net/https://github.com/tianhe6HH/CashUI.git /home/cashui
 
@@ -271,11 +296,11 @@ sudo python3 deploy.py
 ```
 
 > 脚本首次运行会生成 `backend/.env` 并退出；先用 `sudo nano /home/cashui/backend/.env` 填好 `DEFAULT_PASSWORD` 与 `SECRET_KEY`，再重新执行 `sudo python3 deploy.py` 即可完成剩余步骤。
-> 若服务器已有旧版本，脚本会自动 `git pull` 更新后再部署。
+> 若机器上已有旧版本，脚本会自动 `git pull` 更新后再部署。
 
 ---
 
-以下为**分步骤手动部署**，便于理解每个环节或排查问题：
+以下为**分步骤手动部署**，便于理解每个环节或排查问题（两种场景通用）：
 
 ### 6.1 拉取代码
 
@@ -386,7 +411,11 @@ curl http://127.0.0.1/                     # 前端 → 返回 HTML（不再 301
 
 ### 6.8 手机访问
 
-在**手机浏览器**地址栏输入：
+两种场景的访问方式不同：
+
+#### 场景一：Ubuntu 服务器（公网）
+
+在**手机浏览器**地址栏输入公网 IP：
 
 ```
 http://你的公网IP/
@@ -399,9 +428,45 @@ http://你的公网IP/
 1. 后端已启动（`systemctl status cashui` 为 active）
 2. Nginx 已配置并运行（`systemctl status nginx` 为 active）
 3. 前端 dist 已放到 `/var/www/cashui/dist`
-4. **腾讯云安全组放行了 80 端口**（入站规则：TCP 80，来源 `0.0.0.0/0`）
+4. **云安全组放行了 80 端口**（入站规则：TCP 80，来源 `0.0.0.0/0`）
 
-> 手机用任意 WiFi 或流量都能访问（只要手机能上网），不需要和服务器在同一网络。建议在手机把网址「添加到主屏幕」，体验接近 App。
+> 手机用任意 WiFi 或流量都能访问（只要手机能上网），不需要和服务器在同一网络。
+
+#### 场景二：Linux 上位机（局域网）
+
+先查上位机的局域网 IP：
+
+```bash
+ip addr   # 或 hostname -I，记下 192.168.x.x 这类地址
+```
+
+然后在**同一局域网**的手机浏览器输入：
+
+```
+http://上位机局域网IP/
+```
+
+例如上位机 IP 是 `192.168.1.100`，就输入 `http://192.168.1.100/`。
+
+**能打开的前提**：
+
+1. 后端已启动（`systemctl status cashui` 为 active）
+2. Nginx 已配置并运行（`systemctl status nginx` 为 active）
+3. 前端 dist 已放到 `/var/www/cashui/dist`
+4. **上位机防火墙放行了 80 端口**：
+
+```bash
+# 若开启了 ufw 防火墙，放行 80
+sudo ufw allow 80
+# 或 firewalld
+sudo firewall-cmd --permanent --add-port=80/tcp && sudo firewall-cmd --reload
+```
+
+> 上位机场景下，**手机必须和上位机连同一个 WiFi/局域网**才能访问；换到外部网络就访问不了。
+
+---
+
+两种场景都建议在手机把网址「添加到主屏幕」，体验接近 App。
 
 ### 6.9 日常升级
 
@@ -427,33 +492,38 @@ CashUI/
 │   │   ├── init_db.py            # 初始化数据库（建表 + 默认管理员 + 科目）
 │   │   ├── api/                  # API 路由层
 │   │   │   ├── auth.py           #   认证（登录 / 修改密码）
-│   │   │   ├── users.py          #   账号管理（增删改、批量、重置密码）
+│   │   │   ├── users.py          #   账号管理（增删改、批量、重置密码、导出）
 │   │   │   ├── balance.py        #   结余 / 科目 / 科目结转
 │   │   │   ├── transactions.py   #   记账（收入 / 支出）
-│   │   │   ├── funders.py        #   缴款人
+│   │   │   ├── funders.py        #   缴款人（增删改）
 │   │   │   ├── activities.py     #   活动（民主生活会 / 团建 / 聚餐）
 │   │   │   ├── votes.py          #   投票
-│   │   │   └── reports.py        #   报表下载
+│   │   │   ├── reports.py        #   报表下载
+│   │   │   └── data.py           #   数据导出/导入（6 类）
 │   │   ├── core/                 # 核心模块
 │   │   │   ├── deps.py           #   依赖注入（当前用户、角色校验）
 │   │   │   └── security.py       #   JWT 与密码哈希
 │   │   ├── models/               # 数据库模型（ORM 表）
 │   │   ├── schemas/              # Pydantic 请求/响应模型
-│   │   └── services/             # 业务逻辑（报表生成、定时任务）
+│   │   └── services/             # 业务逻辑
+│   │       ├── report.py         #   报表生成
+│   │       ├── scheduler.py      #   定时任务
+│   │       └── data_io.py        #   数据导出/导入逻辑
 │   ├── requirements.txt          # Python 依赖清单
 │   ├── run.py                    # 本地启动脚本
-│   ├── manage_accounts.py        # 账号密码管理脚本（不入 git，本地保留）
+│   ├── data_manager.py           # 数据管理脚本（账号 + 数据导出/导入）
 │   └── .env.example              # 环境变量示例（复制为 .env）
-├── frontend/                     # 前端（Vue 3 + Vite + Vant）
+├── frontend/                     # 前端（Vue 3 + Vite + Vant + Element Plus）
 │   ├── src/
 │   │   ├── main.js               # 入口
-│   │   ├── App.vue               # 根组件
+│   │   ├── App.vue               # 根组件（响应式布局）
 │   │   ├── api/                  # 接口封装（index.js / request.js）
+│   │   ├── composables/          # 组合式函数（useIsDesktop）
 │   │   ├── router/index.js       # 路由与登录守卫
 │   │   ├── stores/auth.js        # 登录态状态管理
-│   │   └── views/                # 页面（11 个）
+│   │   └── views/                # 页面（含 DataManage 数据管理）
 │   ├── package.json              # 前端依赖
-│   ├── vite.config.js            # Vite 配置（/api 代理）
+│   ├── vite.config.js            # Vite 配置（/api 代理、Element Plus 按需引入）
 │   └── index.html
 ├── deploy/
 │   └── nginx.conf                # Nginx 部署配置
