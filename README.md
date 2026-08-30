@@ -50,10 +50,10 @@
 
 ### 1.5 账号安全
 
-- 默认密码 + 首次登录强制改密
+- 默认密码 `123456` + 首次登录强制改密
 - 密码 bcrypt 哈希，JWT 认证
-- 登录失败限流：普通/高级账号 3 次锁 1 分钟 → 5 次锁 3 分钟 → 10 次联系管理员重置；管理员账号不锁定
-- 批量导入 / 批量改权限 / 批量重置密码 / 批量删除
+- 登录失败限流：普通/高级账号 3 次锁 1 分钟 → 5 次锁 3 分钟 → 10 次禁止登录并提示联系管理员重置；管理员账号不锁定
+- 批量导入 / 批量改权限 / 批量重置密码 / 批量删除 / 导出账号密码（CSV）
 
 ---
 
@@ -65,13 +65,13 @@
 
 ### 2.2 设置默认密码
 
-程序里**不写死默认密码**，而是从 `.env` 的 `DEFAULT_PASSWORD` 读取。这个密码会用于：
+程序的默认密码为 `123456`，可通过 `.env` 的 `DEFAULT_PASSWORD` 覆盖。这个密码会用于：
 
 - 首次初始化时创建的管理员账号初始密码
 - 管理员「新建账号」时账号的初始密码
 - 管理员「重置密码」时重置成的密码
 
-**设置方法：**
+**设置方法（可选）：**
 
 ```bash
 cd backend
@@ -81,8 +81,8 @@ cp .env.example .env     # 复制模板为 .env
 然后编辑 `backend/.env` 文件，填入你的配置：
 
 ```ini
-# 所有账号的默认密码（新建/重置时使用）—— 改成你自己的密码
-DEFAULT_PASSWORD=你的默认密码
+# 所有账号的默认密码（新建/重置时使用），默认 123456
+DEFAULT_PASSWORD=123456
 
 # JWT 密钥，改成一段随机长字符串
 SECRET_KEY=请改成随机长字符串
@@ -91,11 +91,11 @@ SECRET_KEY=请改成随机长字符串
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ```
 
-> **重要**：`DEFAULT_PASSWORD` 不要用弱密码，且每个部署环境尽量用不同的密码。
+> **提示**：若不创建 `.env`，程序默认使用 `123456` 作为所有账号的初始密码。
 
-### 2.3 如果不设置 DEFAULT_PASSWORD 会怎样
+### 2.3 默认密码说明
 
-如果 `.env` 里没有 `DEFAULT_PASSWORD`（或为空），程序会**自动生成一个随机密码**，并在初始化 / 重置时打印出来。也就是说，不设置也能用，但你会拿到一个随机密码，建议还是手动设置成好记的。
+默认密码统一为 `123456`。生产环境建议通过 `.env` 的 `DEFAULT_PASSWORD` 改成自己的密码，且每个部署环境尽量用不同的密码。
 
 ### 2.4 生成随机 SECRET_KEY
 
@@ -126,7 +126,7 @@ venv/bin/python -m app.init_db
 
 初始化后会生成：
 - `backend/cashui.db` — 数据库文件
-- 默认管理员账号 `admin`（密码为 `.env` 的 `DEFAULT_PASSWORD`，未配置则随机生成并打印，首次登录需改密）
+- 默认管理员账号 `admin`（密码为默认密码 `123456`，或 `.env` 中配置的 `DEFAULT_PASSWORD`，首次登录需改密）
 - 4 个固定科目：综合使用 / 民主生活会 / 团建 / 年末聚餐
 
 ### 3.2 重置数据库（清空所有数据）
@@ -144,15 +144,21 @@ venv/bin/python -m app.init_db
 # 4. 重新启动后端（sudo systemctl start cashui）
 ```
 
-### 3.3 仅重置管理员密码（管理员忘记密码时）
+### 3.3 账号密码管理（manage_accounts.py）
 
-不用清空数据，只把管理员密码重置为默认密码：
+> 该脚本用于在服务器上单独或批量配置账号与密码，配合「账号管理 → 导出账号」使用。
 
 ```bash
 cd backend
-venv/bin/python reset_admin_password.py          # 默认重置 admin
-venv/bin/python reset_admin_password.py 用户名    # 重置指定管理员
+
+# 单独设置/创建某个账号（角色可选：admin / advanced / normal，默认 normal）
+venv/bin/python manage_accounts.py set 用户名 密码 [角色]
+
+# 批量导入（CSV 表头：username,password,role；密码留空则不改已有账号密码）
+venv/bin/python manage_accounts.py import accounts.csv
 ```
+
+典型流程：在「账号管理」页点「导出账号」得到 `accounts.csv`，修改其中的密码列（留空=不改，填明文=设为该密码），再上传服务器用 `import` 写回。
 
 ### 3.4 备份数据库
 
@@ -193,7 +199,7 @@ refactor: 重构投票结果可见性逻辑
 2. 一次提交只做一件事，避免大杂烩提交
 3. 提交前先 `git status` 确认改动范围
 4. 提交前先 `git diff` 检查改动内容
-5. 不要提交 `venv/`、`node_modules/`、`cashui.db`、`.env`、`reset_admin_password.py` 等（已写入 `.gitignore`）
+5. 不要提交 `venv/`、`node_modules/`、`cashui.db`、`.env`、`manage_accounts.py` 等（已写入 `.gitignore`）
 
 ---
 
@@ -257,7 +263,7 @@ git config --global --unset https.proxy
 ```bash
 # 1. 全新服务器先拉取代码到你想放的位置（例如 /home/cashui，路径可自行指定）
 sudo apt update && sudo apt install -y git
-sudo git clone https://github.com/你的用户名/CashUI.git /home/cashui
+sudo git clone https://ghproxy.net/https://github.com/tianhe6HH/CashUI.git /home/cashui
 
 # 2. 进入该目录执行部署脚本
 cd /home/cashui
@@ -297,7 +303,7 @@ sudo nano .env     # 编辑，至少改 DEFAULT_PASSWORD 和 SECRET_KEY
 ```ini
 SECRET_KEY=一段随机长字符串
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
-DEFAULT_PASSWORD=你的默认密码
+DEFAULT_PASSWORD=123456
 ```
 
 ### 6.3 部署后端
@@ -436,7 +442,7 @@ CashUI/
 │   │   └── services/             # 业务逻辑（报表生成、定时任务）
 │   ├── requirements.txt          # Python 依赖清单
 │   ├── run.py                    # 本地启动脚本
-│   ├── reset_admin_password.py   # 管理员密码重置脚本（不入 git，本地保留）
+│   ├── manage_accounts.py        # 账号密码管理脚本（不入 git，本地保留）
 │   └── .env.example              # 环境变量示例（复制为 .env）
 ├── frontend/                     # 前端（Vue 3 + Vite + Vant）
 │   ├── src/
